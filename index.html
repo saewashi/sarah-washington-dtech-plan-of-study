@@ -477,11 +477,11 @@
       <span class="chip ok">Transfer: <b>30 cr confirmed</b></span>
       <span class="chip">To complete at Purdue: <b>60 cr</b></span>
       <span class="chip">Pace: <b>6+ cr / fall &amp; spring</b></span>
-      <span class="chip">Aligned: <b>2025-26 Catalog</b></span>
-      <span class="chip draft">Status: Working Draft v19</span>
+      <span class="chip">Aligned: <b id="catalog-label" contenteditable="true">2025-26 Catalog</b></span>
     </div>
     <div class="toolbar">
       <button class="tb-btn" onclick="exportPlan()">Export Plan</button>
+      <button class="tb-btn" onclick="exportExcel()">Download Excel</button>
       <button class="tb-btn ghost" onclick="document.getElementById('import-file').click()">Import Plan</button>
       <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importPlan(event)">
       <button class="tb-btn ghost" onclick="window.print()">Print / PDF</button>
@@ -589,6 +589,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
   /* ===========================================================
      CLOUD SYNC CONFIG  —  paste your two Supabase values here.
@@ -736,7 +737,7 @@ const findCourse = (code, title) => catalog.find(c => c.code === code && (!title
 /* required-first default plan: 6+ cr per fall/spring, prerequisite order; electives left in catalog */
 const dissBlocks = catalog.filter(c => c.cat === 'diss').map(c => c.id);
 let semesters = [
-  { name: 'Fall 2026',   mile: 'POS approved · committee formed', notes: '', courses: [findCourse('TECH 60300').id, findCourse('TECH 50900').id, findCourse('TCM 51000').id] },
+  { name: 'Fall 2026',   mile: '', notes: '', courses: [findCourse('TECH 60300').id, findCourse('TECH 50900').id, findCourse('TCM 51000').id] },
   { name: 'Spring 2027', mile: '', notes: '', courses: [findCourse('TECH 65000').id, findCourse('TECH 65100').id] },
   { name: 'Summer 2027', mile: '', notes: '', courses: [] },
   { name: 'Fall 2027',   mile: '', notes: '', courses: [findCourse('TECH 65200').id, findCourse('TECH 67600').id] },
@@ -1014,6 +1015,7 @@ function snapshot() {
     catalog: catalog.map(c => ({ code: c.code, title: c.title, cr: c.cr, cat: c.cat, prereq: c.prereq, desc: c.desc })),
     semesters: semesters.map(s => ({ name: s.name, mile: s.mile, notes: s.notes || '', courses: s.courses.map(id => idToIdx.get(id)) })),
     committee: document.getElementById('committee') ? document.getElementById('committee').innerHTML : null,
+    catalogLabel: document.getElementById('catalog-label') ? document.getElementById('catalog-label').innerText : null,
     direction: document.querySelector('.direction p') ? document.querySelector('.direction p').innerHTML : null
   };
 }
@@ -1042,6 +1044,7 @@ function applyState(data) {
   }));
   placed = new Set(semesters.flatMap(s => s.courses));
   if (data.committee) document.getElementById('committee').innerHTML = data.committee;
+  if (data.catalogLabel && document.getElementById('catalog-label')) document.getElementById('catalog-label').innerText = data.catalogLabel;
   if (data.direction) document.querySelector('.direction p').innerHTML = data.direction;
   return true;
 }
@@ -1050,6 +1053,153 @@ function loadState() {
   const raw = storage.get();
   if (!raw) return false;
   try { return applyState(JSON.parse(raw)); } catch (e) { return false; }
+}
+
+async function exportExcel() {
+  if (!window.ExcelJS) { toast('Excel library still loading, try again in a moment'); return; }
+  const GOLD = 'FFCFB991', RUSH = 'FFDAAA00', BLACK = 'FF000000', WHITE = 'FFFFFFFF';
+  const DARK = 'FF1C1C1A', GREY = 'FFE2E2E2', SOFT = 'FFF5F5F5';
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Doctor of Technology Plan of Study';
+  wb.created = new Date();
+
+  /* ───── Sheet 1: Plan ───── */
+  const ws = wb.addWorksheet('Plan of Study', {
+    properties: { defaultRowHeight: 18 },
+    pageSetup: { fitToPage: true, fitToWidth: 1, orientation: 'portrait', margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 } }
+  });
+  ws.columns = [
+    { width: 16 }, { width: 18 }, { width: 52 }, { width: 26 }, { width: 9 }
+  ];
+  const thin = { style: 'thin', color: { argb: GREY } };
+  const border = { top: thin, left: thin, bottom: thin, right: thin };
+
+  let r = 1;
+  const merge = (row, txt, opts) => {
+    ws.mergeCells(row, 1, row, 5);
+    const c = ws.getCell(row, 1);
+    c.value = txt;
+    c.font = opts.font; c.alignment = opts.align || { vertical: 'middle', horizontal: 'left' };
+    if (opts.fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: opts.fill } };
+    ws.getRow(row).height = opts.h || 20;
+  };
+
+  merge(r++, 'PURDUE UNIVERSITY  ·  POLYTECHNIC INSTITUTE', { fill: BLACK, font: { name: 'Arial Black', size: 14, bold: true, color: { argb: GOLD } }, h: 26 });
+  merge(r++, 'Doctor of Technology  —  Plan of Study', { fill: DARK, font: { size: 12, bold: true, color: { argb: WHITE } }, h: 22 });
+  const dirEl = document.querySelector('.direction p');
+  merge(r++, 'Sarah K\u2019La Washington   ·   Start: Fall 2026   ·   Interdisciplinary Concentration', { font: { size: 10, color: { argb: DARK } }, h: 18 });
+  merge(r++, '30 transfer credits confirmed (IU M.S.)  ·  60 credits to complete at Purdue  ·  90 total', { font: { size: 10, italic: true, color: { argb: 'FF595959' } }, h: 18 });
+  r++;
+
+  /* summary block */
+  let core = 0, elec = 0, diss = 0;
+  semesters.forEach(s => s.courses.forEach(id => {
+    const c = byId(id); const b = CATS[c.cat].bucket;
+    if (b === 'core') core += c.cr; else if (b === 'elec') elec += c.cr; else if (b === 'diss') diss += c.cr;
+  }));
+  const summary = [
+    ['Transfer credits (IU M.S.)', 30], ['Core courses', core], ['Electives', elec],
+    ['Dissertation', diss], ['TOTAL', 30 + core + elec + diss]
+  ];
+  merge(r, 'DEGREE SUMMARY', { fill: RUSH, font: { size: 11, bold: true, color: { argb: BLACK } }, h: 20 });
+  r++;
+  summary.forEach(([k, v]) => {
+    const isTotal = k === 'TOTAL';
+    ws.getCell(r, 1).value = k;
+    ws.mergeCells(r, 1, r, 4);
+    const vc = ws.getCell(r, 5); vc.value = v + (isTotal ? ' / 90' : '');
+    ws.getCell(r, 1).font = { size: 10, bold: isTotal, color: { argb: DARK } };
+    vc.font = { size: 10, bold: true, color: { argb: isTotal ? 'FF6E591F' : DARK } };
+    vc.alignment = { horizontal: 'right' };
+    for (let col = 1; col <= 5; col++) { const cc = ws.getCell(r, col); cc.border = border; if (isTotal) cc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F1E0' } }; }
+    r++;
+  });
+  r++;
+
+  /* semester table header */
+  merge(r, 'SEMESTER-BY-SEMESTER PLAN', { fill: RUSH, font: { size: 11, bold: true, color: { argb: BLACK } }, h: 20 });
+  r++;
+  const head = ['Semester', 'Course', 'Title', 'Type', 'Cr'];
+  head.forEach((h, i) => {
+    const c = ws.getCell(r, i + 1); c.value = h;
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLACK } };
+    c.font = { size: 10, bold: true, color: { argb: GOLD } };
+    c.border = border; c.alignment = { vertical: 'middle' };
+  });
+  ws.getRow(r).height = 18; r++;
+
+  const TYPE = { core: 'Required · Core', coreElec: 'Required · Core Elective', diss: 'Required · Dissertation', dtech: 'Elective · D.Tech', cit: 'Elective · CNIT/OLS/CGT', custom: 'Elective · Custom' };
+  semesters.forEach(s => {
+    const semCr = s.courses.reduce((t, id) => t + byId(id).cr, 0);
+    if (!s.courses.length) {
+      const rowVals = [s.name, '—', /summer/i.test(s.name) ? 'Open (optional summer term)' : 'Open — electives to be added', '', ''];
+      rowVals.forEach((v, i) => { const c = ws.getCell(r, i + 1); c.value = v; c.font = { size: 10, italic: true, color: { argb: 'FF8C8C8C' } }; c.border = border; });
+      ws.getCell(r, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SOFT } };
+      r++;
+    } else {
+      const start = r;
+      s.courses.forEach((id, idx) => {
+        const c = byId(id);
+        const vals = [idx === 0 ? s.name : '', c.code, c.title, TYPE[c.cat] || '', c.cr];
+        vals.forEach((v, i) => {
+          const cell = ws.getCell(r, i + 1); cell.value = v;
+          cell.font = { size: 10, color: { argb: DARK } };
+          cell.border = border;
+          if (i === 4) cell.alignment = { horizontal: 'center' };
+        });
+        ws.getCell(r, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SOFT } };
+        ws.getCell(r, 1).font = { size: 10, bold: true, color: { argb: BLACK } };
+        r++;
+      });
+      /* semester credit subtotal */
+      ws.getCell(r, 4).value = s.name + ' total';
+      ws.getCell(r, 5).value = semCr;
+      ws.getCell(r, 4).font = { size: 9, italic: true, color: { argb: 'FF6E591F' } };
+      ws.getCell(r, 4).alignment = { horizontal: 'right' };
+      ws.getCell(r, 5).font = { size: 9, bold: true, color: { argb: 'FF6E591F' } };
+      ws.getCell(r, 5).alignment = { horizontal: 'center' };
+      for (let col = 1; col <= 5; col++) ws.getCell(r, col).border = border;
+      r++;
+    }
+  });
+
+  /* ───── Sheet 2: Committee & Research ───── */
+  const ws2 = wb.addWorksheet('Committee & Research');
+  ws2.columns = [{ width: 28 }, { width: 70 }];
+  let r2 = 1;
+  ws2.mergeCells(r2, 1, r2, 2);
+  const t2 = ws2.getCell(r2, 1); t2.value = 'ADVISORY COMMITTEE'; t2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLACK } };
+  t2.font = { size: 12, bold: true, color: { argb: GOLD } }; ws2.getRow(r2).height = 22; r2 += 2;
+  document.querySelectorAll('#committee .member').forEach(m => {
+    const role = m.querySelector('.role')?.innerText.trim() || '';
+    const name = m.querySelector('.name')?.innerText.trim() || '';
+    const focus = m.querySelector('.focus')?.innerText.trim() || '';
+    ws2.getCell(r2, 1).value = role; ws2.getCell(r2, 1).font = { size: 9, bold: true, color: { argb: 'FF8E6F3E' } };
+    ws2.getCell(r2, 2).value = name; ws2.getCell(r2, 2).font = { size: 11, bold: true, color: { argb: DARK } };
+    r2++;
+    ws2.getCell(r2, 2).value = focus; ws2.getCell(r2, 2).font = { size: 10, color: { argb: 'FF595959' } };
+    ws2.getCell(r2, 2).alignment = { wrapText: true }; r2 += 2;
+  });
+  r2++;
+  ws2.mergeCells(r2, 1, r2, 2);
+  const t3 = ws2.getCell(r2, 1); t3.value = 'DISSERTATION DIRECTION'; t3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RUSH } };
+  t3.font = { size: 12, bold: true, color: { argb: BLACK } }; ws2.getRow(r2).height = 22; r2 += 2;
+  ws2.mergeCells(r2, 1, r2, 2);
+  const dc = ws2.getCell(r2, 1); dc.value = dirEl ? dirEl.innerText.trim() : '';
+  dc.font = { size: 10, color: { argb: DARK } }; dc.alignment = { wrapText: true, vertical: 'top' };
+  ws2.getRow(r2).height = 120;
+
+  /* download */
+  try {
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'DTech-Plan-of-Study.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Excel file downloaded');
+  } catch (e) { toast('Could not generate the Excel file'); }
 }
 
 function exportPlan() {
@@ -1086,7 +1236,7 @@ function resetPlan() {
 document.addEventListener('input', e => {
   if (e.target.closest('#committee') || e.target.closest('.direction') ||
       e.target.classList.contains('sem-mile') || e.target.classList.contains('sem-notes') ||
-      e.target.classList.contains('sem-name')) save();
+      e.target.classList.contains('sem-name') || e.target.id === 'catalog-label') save();
 });
 
 
