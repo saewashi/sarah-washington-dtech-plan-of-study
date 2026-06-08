@@ -296,6 +296,19 @@
     border-radius: 10px; padding: 20px 22px; box-shadow: var(--shadow); }
   .direction .lab { font-family: var(--mono); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 7px; }
   .direction p { color: var(--ink-soft); max-width: 820px; font-size: 18px; outline: none; }
+  .direction p.diss-title {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 22px;
+    line-height: 1.25; color: #000; letter-spacing: .01em;
+  }
+  .diss-link {
+    display: inline-block; margin-top: 16px;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 17px;
+    letter-spacing: .05em; text-transform: uppercase;
+    color: #000; background: var(--gold-bright);
+    padding: 9px 20px; border-radius: 6px; text-decoration: none;
+    border: 2px solid var(--gold-bright); transition: all .15s;
+  }
+  .diss-link:hover { background: #000; color: var(--gold-bright); border-color: #000; }
 
   /* ── black Purdue footer band ── */
   .foot {
@@ -575,8 +588,11 @@
     <div class="sec-head"><span class="sec-num">04</span><h2>Dissertation Direction</h2></div>
     <p class="sec-note">TECH 64000 Doctoral Thesis Research, graded S/U, minimum 15 cr distributed across multiple semesters. Applied, use-inspired dissertation. Editable below.</p>
     <div class="direction">
-      <div class="lab">Working Direction</div>
-      <p contenteditable="true">Trust calibration and risk perception in AI-mediated information: how organizations and vulnerable populations (including children and teens growing up with these technologies) evaluate, trust, and act on AI-generated content, with applied outcomes for human-centered cybersecurity design. Builds on prior capstone research evaluating five AI tools across 11 legal practice areas.</p>
+      <div class="lab">Final Dissertation Title</div>
+      <p class="diss-title" contenteditable="true">Human-Computer Interaction, AI, and Cybersecurity: An Applied Integrated Framework for Risk, Trust, and Responsible Technology in an Evolving Digital Society</p>
+      <div class="lab" style="margin-top:18px;">Research Identity Statement</div>
+      <p contenteditable="true">I research the intersection of human-computer interaction, AI, and cybersecurity as an integrated and inseparable whole, examining how this intersection affects people, organizations, and society at large. This research carries two interconnected focuses: the organizations, businesses, NGOs, and government agencies of every size that build, deploy, and implement AI-powered technology, and who must understand this intersection to operate responsibly, protect the people they serve, and navigate the legal, ethical, and reputational risks that come with getting it wrong; and the broader population those systems affect, with particular attention to vulnerable populations who bear the greatest consequences when the intersection is not understood or designed for. The goal is to draw on existing research across HCI, AI, and cybersecurity to give organizations practical, applied guidance they can sustain as these technologies continue to evolve and reshape daily life across every sector of society.</p>
+      <a class="diss-link" href="https://claude.ai/public/artifacts/066c7044-c6ce-4d9a-a04d-00aeed97dad9" target="_blank" rel="noopener">View full dissertation page &rarr;</a>
     </div>
   </section>
 
@@ -1016,7 +1032,8 @@ function snapshot() {
     semesters: semesters.map(s => ({ name: s.name, mile: s.mile, notes: s.notes || '', courses: s.courses.map(id => idToIdx.get(id)) })),
     committee: document.getElementById('committee') ? document.getElementById('committee').innerHTML : null,
     catalogLabel: document.getElementById('catalog-label') ? document.getElementById('catalog-label').innerText : null,
-    direction: document.querySelector('.direction p') ? document.querySelector('.direction p').innerHTML : null
+    direction: document.querySelector('.direction p') ? document.querySelector('.direction p').innerHTML : null,
+    directionHTML: document.querySelector('.direction') ? document.querySelector('.direction').innerHTML : null
   };
 }
 
@@ -1045,7 +1062,7 @@ function applyState(data) {
   placed = new Set(semesters.flatMap(s => s.courses));
   if (data.committee) document.getElementById('committee').innerHTML = data.committee;
   if (data.catalogLabel && document.getElementById('catalog-label')) document.getElementById('catalog-label').innerText = data.catalogLabel;
-  if (data.direction) document.querySelector('.direction p').innerHTML = data.direction;
+  if (data.directionHTML && document.querySelector('.direction')) document.querySelector('.direction').innerHTML = data.directionHTML;
   return true;
 }
 
